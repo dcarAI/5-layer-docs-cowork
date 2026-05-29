@@ -200,6 +200,30 @@
 
 ---
 
+## Code ↔ governance sync antipatterns
+
+### A17 — Code change without governance update in the same commit
+
+**Síntoma:** un commit añade un nuevo endpoint, modelo, agente IA, o cambia un schema de DB pero NO toca el nodo `agt-*` / `ds-*` / `flw-*` / `pol-*` afectado. La excusa típica: "lo actualizo después".
+
+**Por qué es malo:** después de 3-5 commits así, gobernanza y código divergen. Un auditor que lea solo `30_gobernanza/` ve un sistema distinto al que realmente corre. La trazabilidad regulatoria queda rota — el coupling SDD↔gobernanza solo funciona si ambos viven en cada commit.
+
+Observado en OCA-BIM H10 commit 4: 4 commits de código seguidos sin actualizar `agt-classifier`, `ds-master-catalog`, `pol-multi-tenant-app-scoping` etc. Saneamiento posterior costó ~30 min adicionales. Saneamiento perpetuo es deuda exponencial.
+
+**Mitigación:** _common_context.md "Coupling with code (MANDATORY)" + Orchestrator agent rechaza handoffs sin governance bumps + tabla de mapping "código → nodos a tocar" en el contexto compartido. Cada commit message lista los nodos tocados bajo "Refs:" o "Gobernanza:".
+
+### A18 — Secret leaked into chat / commit / log
+
+**Síntoma:** un operador pega una API key, secret key, password, JWT, o credencial de cualquier tipo en el chat con el agente, en un comentario de código, en un log que se commitea, o en una screenshot adjunta al ticket.
+
+**Por qué es malo:** la secret queda en la transcripción del agente, en los logs locales de la herramienta (e.g. `~/.claude/projects/.../*.jsonl`), y potencialmente en el clipboard / paste history del SO. Aunque sea una key de development, expone un proceso roto.
+
+Observado en OCA-BIM H10 commit 1: la `CLERK_SECRET_KEY` apareció en chat. Aunque era dev, motivó la creación de `dec-025-secretas-fuera-del-repo-y-rotacion` con procedimiento de rotación formal.
+
+**Mitigación:** el agente trabaja siempre con el **nombre** de la env var (`CLERK_SECRET_KEY`), no con su valor literal. El operador inyecta el valor en `os.environ` antes de levantar el backend. Cuando se detecte una secret en chat, el agente avisa con la **acción inmediata recomendada** (rotar la key en el dashboard del proveedor) y procede solo con identificadores públicos.
+
+---
+
 ## When to break a rule
 
 Estos antipatterns son **guidance, no leyes inmutables**. Razones legítimas para romperlos:

@@ -130,6 +130,40 @@ Every ADR in the SDD §8 has its mirror as a `dec-` node with `espeja_adr: ADR-N
 
 **Zero content duplication; structural traceability duplication.**
 
+### Coupling with code (MANDATORY — added 2026-05-29)
+
+**Governance is not a parallel artifact. It is a live layer that must stay in sync with the code in every commit.**
+
+When generating or modifying code in `20_especificacion_tecnica/` or in the actual application repo, every agent MUST, in the same commit (not a follow-up commit, not "later"):
+
+1. **Identify** which governance nodes the code change affects. Use this checklist:
+
+   | Code change | Governance nodes to revisit |
+   |---|---|
+   | New / renamed DB table or column | `ds-*` (datasets) — bump `esquema:` block, version |
+   | New / changed AI agent behavior | `agt-*` — bump `estado_implementacion:`, version |
+   | New flow (pipeline, publication, ingestion) | `flw-*` — update diagram + `gobernado_por:` |
+   | New endpoint with capability gate | `pol-*` — confirm the gate is documented, add example |
+   | New auth mechanism / role mapping | `dec-*` — bump version with new tenant/role data |
+   | New domain-level term (TenantScope, KPI pair, …) | `semantica/glosario.yaml` — add `term-*` entry |
+   | New domain or sub-domain | `semantica/dominios.yaml` — add `dom-*` entry |
+   | New external secret / API key surface | `dec-*` for the provider + secret-handling policy |
+   | Drop of legacy schema / API | Mark the affected `agt-*` / `ds-*` / `flw-*` with `estado_implementacion.legacy_dropped_in: <commit>` |
+
+2. **Update the affected nodes in the same commit** as the code. Bump the node's `version` (semver-style) and the `actualizado:` date. Add an `estado_implementacion:` block under the front-matter if the runtime state of the node changed.
+
+3. **List the touched nodes in the commit message** under a "Refs:" or "Gobernanza:" section so a future audit can trace code → governance trivially.
+
+4. **If you are not sure whether a node needs updating**, escalate to the user via `escalation_protocol.md`. Do not silently skip — that is how governance drift starts.
+
+**Antipattern — explicit forbidden behavior:**
+
+> "I will update governance later, after the feature lands."
+
+Code changes without their governance update mean the two layers diverge. After 3–5 commits the divergence is irrecoverable without a dedicated audit pass. **Always update both in one transaction (one commit).**
+
+The Orchestrator agent must reject any handoff where the developer agent (TechSpec or producing the implementation) submits code without the corresponding governance bumps. See `known_antipatterns.md` A17.
+
 ---
 
 ## Iteration philosophy
